@@ -1,0 +1,8 @@
+{
+  "framework": null,
+  "buildCommand": "node build.cjs",
+  "outputDirectory": "public",
+  "functions": {"api/app.js": {"includeFiles": "app.html"}},
+  "rewrites": [{"source":"/app","destination":"/api/app"},{"source":"/app.html","destination":"/api/app"}],
+  "headers": [{"source":"/(.*)","headers":[{"key":"X-Content-Type-Options","value":"nosniff"},{"key":"Referrer-Policy","value":"no-referrer"}]}]
+}
