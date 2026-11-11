@@ -1,9 +1,8 @@
-const fs=require('node:fs');
-const path=require('node:path');
 const {authorized}=require('../lib/access.cjs');
 module.exports=async(req,res)=>{
   res.setHeader('Cache-Control','private, no-store');
   if(req.method!=='POST'){res.statusCode=302;res.setHeader('Location','/');return res.end();}
+  let stage='authentication';
   try {
     const body=typeof req.body==='string'?new URLSearchParams(req.body):req.body;
     const token=body instanceof URLSearchParams?body.get('token'):body?.token;
@@ -13,9 +12,14 @@ module.exports=async(req,res)=>{
     res.setHeader('Content-Type','text/html; charset=utf-8');
     const subject=JSON.parse(Buffer.from(token.split('.')[1],'base64url').toString()).sub;
     if(!/^[a-f0-9-]{36}$/i.test(subject)) throw Error('Invalid subject');
-    const html=fs.readFileSync(path.join(process.cwd(),'app.html'),'utf8')
+    stage='application';
+    const html=require('../lib/app-content.json')
       .replace('<head>','<head><base href="/">')
       .replaceAll('my-tags-business-v1','my-tags-business-v1-'+subject);
     res.end(html);
-  }catch {res.statusCode=503;res.end('Não foi possível verificar seu acesso. Tente novamente pela página inicial.');}
+  }catch(error) {
+    console.error('MY_TAGS_APP_ERROR',{stage,code:error.code||'UNKNOWN'});
+    res.statusCode=503;res.end(stage==='application'?'Não foi possível carregar o aplicativo. Tente novamente em instantes.':'Não foi possível verificar seu acesso. Tente novamente pela página inicial.');
+  }
 };
+
