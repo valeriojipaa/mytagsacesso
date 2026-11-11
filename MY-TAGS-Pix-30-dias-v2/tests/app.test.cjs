@@ -1,0 +1,9 @@
+const {test}=require('node:test');const assert=require('node:assert/strict');const fs=require('node:fs');const path=require('node:path');const vm=require('node:vm');
+function setup(allowed=true,missing=false){const module={exports:{}};const source=fs.readFileSync(path.join(__dirname,'../api/app.js'),'utf8');vm.runInNewContext(source,{module,Buffer,URLSearchParams,console:{error(){}},require(name){if(name.includes('access.cjs'))return {authorized:async()=>allowed};if(name.includes('app-content.json')){if(missing)throw Object.assign(Error(),{code:'MODULE_NOT_FOUND'});return '<html><head></head><body>my-tags-business-v1</body></html>';}throw Error(name);}});return module.exports;}
+function response(){return {headers:{},setHeader(k,v){this.headers[k]=v;},end(body){this.body=body;}};}
+const subject='19532d2c-c79e-4084-9042-8f3f8e08c0be';const token='test.'+Buffer.from(JSON.stringify({sub:subject})).toString('base64url')+'.test';
+test('login autorizado carrega aplicação sem depender do diretório corrente',async()=>{const res=response();await setup()( {method:'POST',body:{token}},res);assert.match(res.body,/<base href="\/">/);assert.ok(res.body.includes('my-tags-business-v1-'+subject));assert.equal(res.headers['Cache-Control'],'private, no-store');});
+test('sem permissão não entrega aplicação',async()=>{const res=response();await setup(false)({method:'POST',body:{token}},res);assert.equal(res.statusCode,403);assert.ok(!res.body.includes('<html>'));});
+test('acesso direto redireciona ao login',async()=>{const res=response();await setup()({method:'GET'},res);assert.equal(res.statusCode,302);assert.equal(res.headers.Location,'/');});
+test('arquivo ausente apresenta falha de carregamento',async()=>{const res=response();await setup(true,true)({method:'POST',body:{token}},res);assert.equal(res.statusCode,503);assert.match(res.body,/carregar o aplicativo/);});
+
